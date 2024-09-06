@@ -1,5 +1,6 @@
 <script>
-	import {tsvParse, tsvFormat,csvFormat} from 'd3-dsv';
+	import {tsvParse, tsvFormat,csvFormat,autoType} from 'd3-dsv';
+	import BigNumber from "bignumber.js";
 	let csv = '';
 	let data = [];
 	let columns=[];
@@ -7,24 +8,26 @@
 	let name = 'category';
 	let tidycolumns=[];
 	let href ='';
-	let repeat = false;
+	let repeat = null;
+	let repeatCheck = false;
 	let repeatCol = null;
 	
 	
 	
 	function readthedata(csv){
- 		data=tsvParse(csv)
+ 		data=tsvParse(csv,autoType)
 		columns = data.columns
 	}
+
 	
 	function selectAll(){
 		var myNodeList = document.querySelectorAll("input[name=checkboxes]");
-		for (i = 1; i <	myNodeList.length; i++) {
+		for (let i = 1; i <	myNodeList.length; i++) {
 			myNodeList[i].checked = true;
 		}
 		tidydata(data)
 	}
-	
+
 	function tidydata(data){
 // 		find columns checked
 	 	var checked=[];	
@@ -37,17 +40,20 @@
 			notChecked.push(d.value)
 		});
 
+		
 // 		find repeated column
-		if(repeat){
-			var repeatCol = document.querySelector('input[name=repeat]:checked').value		
+		if(repeatCheck){
+			repeatCol = document.querySelector('input[name=repeat]:checked').value		
 
 			const index = notChecked.indexOf(repeat);
 			if (index > -1) {
 				notChecked.splice(index, 1);
 			}
+		} else {
+			repeatCol = null;
 		}	
 		
-
+console.log(repeatCheck,repeat, checked,notChecked)
 	
 		var tidied=[]
 		data.forEach(function(e){
@@ -80,13 +86,36 @@
 		tidy = tsvParse(tsvFormat(tidied))
 		tidycolumns = tidy.columns
 	}
+	
+	function timesTen() {
+  tidy.forEach(d => {
+    if (!BigNumber(d.value).isNaN()) {
+      d.value = BigNumber(d.value).times(10);
+    }
+  });
+  tidy = tidy;
+}
+
+function divideTen() {
+  tidy.forEach(d => {
+    if (!BigNumber(d.value).isNaN()) {
+      d.value = BigNumber(d.value).div(10);
+    }
+  });
+  tidy = tidy;
+}
+
+$:if(repeat&&repeatCheck)tidydata(data);
+
+$:if(repeatCheck==false)repeat=null;
+
 </script>
 
 <h1>Let's tidy your data!</h1>
 <h2>
 	Step 1. Paste your data
 </h2>
-<label for="csvdata">Paste data in from Excel</label>
+<label for="csvdata">Paste data in from Excel</label><br/>
 <textarea on:input="{e => readthedata(e.target.value)}" rows=10 columns=10 id="csvdata"></textarea>
 
 <p>
@@ -118,22 +147,10 @@
 	Step 2: Choose your columns to merge
 </h2>
 
-<br/>
-	<label for="repeatcheck">I need to repeat a column.</label> <input id="repeatcheck" type="checkbox" bind:checked={repeat}>
 
-	{#if repeat}
-		<p>
-			Which column to repeat?
-</p>
-		{#each columns as d}
-		<div class="item">
-			<input name="repeat" type="radio" on:input={e=>tidydata(data)} bind:group={repeat} id={'radio'+d} value={d}><label for={'radio'+d}>{d}</label>
-		</div>
-		{/each}
-	{/if}
+	
 
-
-
+<div>
 <p>
 	Choose which columns to combine
 </p>
@@ -147,18 +164,42 @@
 		<input name="checkboxes" type="checkbox" on:input={e=>tidydata(data)} id={d} value={d}><label for={d}>{d}</label>
 	</div>
 	{/each}
+	
+</div>
+<br/>
+<h4>Optional</h4>
+<div>
+	<label for="repeatcheck">I need to repeat a column.</label> <input id="repeatcheck" type="checkbox" bind:checked={repeatCheck}>
 
+	{#if repeatCheck}
+		<p>
+			Which column to repeat?
+	</p>
+		{#each columns as d}
+		<div class="item">
+			<input name="repeat" type="radio" on:input={e=>tidydata(data)} bind:group={repeat} id={'radio'+d} value={d}><label for={'radio'+d}>{d}</label>
+		</div>
+		{/each}
+	{/if}
+</div>
+
+
+<br/>
+<div>
 <label for="columnname">
-	Choose a new column name (optional)
+	Choose a new column name 
 </label>
 <input id="columnname" on:input={e=>tidydata(data)} bind:value={name} type="text">
+	</div>
 <h2>
 	Step 3. Check your tidy data
 </h2>
 <p>
 	Here's your tidy data
 </p>
-
+<button on:click={timesTen}>Multiply values by 10</button>
+<button on:click={divideTen}>Divide values by 10</button>
+<!-- These buttons aren't working yet, struggling to get string to convert to numbers -->
 <div class="tablewrapper">
 	<table>
 		<thead>
